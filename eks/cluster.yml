@@ -1,5 +1,9 @@
 Description: VPC Networking + EKS Cluster + Worker Nodes
 Parameters:
+  LocalIP:
+    Type: String
+    Description: IP of your Local Machine.
+    Default: "0.0.0.0/32"
   CidrPrefix:
     Type: String
     Description: Prefix of the network ranges.
@@ -515,6 +519,18 @@ Resources:
       IpProtocol: '-1'
       FromPort: 0
       ToPort: 65535
+  NodeSecurityGroupIngressForPods:
+    Type: AWS::EC2::SecurityGroupIngress
+    DependsOn: NodeSecurityGroup
+    Properties:
+      Description: Allow Local machine to communicate to pods for proxy
+      GroupId:
+        Ref: NodeSecurityGroup
+      CidrIp:
+        Ref: LocalIP
+      IpProtocol: '-1'
+      FromPort: 0
+      ToPort: 65535
   EKSCluster:
     Type: AWS::EKS::Cluster
     Properties:
@@ -547,6 +563,22 @@ Resources:
           Action:
           - sts:AssumeRole
       Path: "/"
+      Policies: 
+        - 
+          PolicyName: "external-dns-policy"
+          PolicyDocument: 
+            Version: "2012-10-17"
+            Statement: 
+              - 
+                Effect: "Allow"
+                Action: "route53:ChangeResourceRecordSets"
+                Resource: "arn:aws:route53:::hostedzone/*"
+              - 
+                Effect: "Allow"
+                Action: 
+                  - "route53:ListHostedZones"
+                  - "route53:ListResourceRecordSets"
+                Resource: "*"
       ManagedPolicyArns:
       - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
       - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
